@@ -1,2 +1,9 @@
 __pycache__/
 *.pyc
+text/data/ag_news_csv/test.csv
+text/data/ag_news_csv/train.csv
+text/data/yahoo_answers_csv/test.csv
+text/data/yahoo_answers_csv/train.csv
+text/ag_news_n_10.csv
+text/yahoo_n_10.csv
+text/data/yahoo_answers_csv/

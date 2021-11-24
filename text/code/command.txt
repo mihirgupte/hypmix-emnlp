@@ -1,0 +1,1 @@
+python ./code/train.py --gpu 0 --n-labeled 10 --data-path ./data/yahoo_answers_csv/ --batch-size 8 --batch-size-u 1 --epochs 3 --val-iteration 20 --lambda-u 0 --T 0.3 --alpha 16 --mix-layers-set 6 7 9 12 --separate-mix True --save_file_name_csv yahoo_n_10.csv --mix-method 1

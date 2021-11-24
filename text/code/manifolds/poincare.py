@@ -102,6 +102,11 @@ class PoincareBall(Manifold):
         res_0 = torch.zeros(1, dtype=res_c.dtype, device=res_c.device)
         res = torch.where(cond, res_0, res_c)
         return res
+      
+    def mobius_scalar_mul(self,r,x,k,dim=-1):
+        x_norm = x.norm(dim=dim, keepdim=True, p=2).clamp_min(1e-15)
+        res_c = tanh(r * artanh(x_norm, k), k) * (x / x_norm)
+        return res_c
 
     def init_weights(self, w, c, irange=1e-5):
         w.data.uniform_(-irange, irange)

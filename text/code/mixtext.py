@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from transformers import *
 from transformers.modeling_bert import BertEmbeddings, BertPooler, BertLayer
-import geoopt.manifolds.poincare.math as pmath_geo
+import geoopt.manifolds.stereographic.math as pmath_geo
 
 class BertModel4Mix(BertPreTrainedModel):
     def __init__(self, config):
@@ -109,12 +109,13 @@ class BertEncoder4Mix(nn.Module):
         # Perform mix at till the mix_layer
         if mix_layer == -1:
             if hidden_states2 is not None:
-                hidden_states_1 = pmath_geo.expmap0(hidden_states, c=torch.tensor([1.0], device='cuda'))
-                hidden_states_2 = pmath_geo.expmap0(hidden_states2, c=torch.tensor([1.0], device='cuda'))
-                weighted_hidden_states_1 = pmath_geo.mobius_scalar_mul(l, hidden_states_1, c=torch.tensor([1.0], device='cuda'))
-                weighted_hidden_states_2 = pmath_geo.mobius_scalar_mul((1-l), hidden_states_2, c=torch.tensor([1.0], device='cuda'))
-                hidden_states_1_plus_2 = pmath_geo.mobius_add(weighted_hidden_states_1, weighted_hidden_states_2, c=storch.tensor([1.0], device='cuda'))
-                hidden_states = pmath_geo.logmap0(hidden_states_1_plus_2, c=torch.tensor([1.0], device='cuda'))
+                hidden_states_1 = pmath_geo.expmap0(hidden_states, k=torch.tensor([1.0]))
+                hidden_states_2 = pmath_geo.expmap0(hidden_states2, k=torch.tensor([1.0]))
+                #print(l)
+                weighted_hidden_states_1 = pmath_geo.mobius_scalar_mul(torch.Tensor([l]), hidden_states_1, k=torch.tensor([1.0]))
+                weighted_hidden_states_2 = pmath_geo.mobius_scalar_mul(torch.Tensor([1-l]), hidden_states_2, k=torch.tensor([1.0]))
+                hidden_states_1_plus_2 = pmath_geo.mobius_add(weighted_hidden_states_1, weighted_hidden_states_2, k=torch.tensor([1.0]))
+                hidden_states = pmath_geo.logmap0(hidden_states_1_plus_2, k=torch.tensor([1.0]))
 
         for i, layer_module in enumerate(self.layer):
             if i <= mix_layer:
@@ -136,12 +137,13 @@ class BertEncoder4Mix(nn.Module):
 
             if i == mix_layer:
                 if hidden_states2 is not None:
-                    hidden_states_1 = pmath_geo.expmap0(hidden_states, c=torch.tensor([1.0], device='cuda'))
-                    hidden_states_2 = pmath_geo.expmap0(hidden_states2, c=torch.tensor([1.0], device='cuda'))
-                    weighted_hidden_states_1 = pmath_geo.mobius_scalar_mul(l, hidden_states_1, c=torch.tensor([1.0], device='cuda'))
-                    weighted_hidden_states_2 = pmath_geo.mobius_scalar_mul((1-l), hidden_states_2, c=torch.tensor([1.0], device='cuda'))
-                    hidden_states_1_plus_2 = pmath_geo.mobius_add(weighted_hidden_states_1, weighted_hidden_states_2, c=torch.tensor([1.0], device='cuda'))
-                    hidden_states = pmath_geo.logmap0(hidden_states_1_plus_2, c=torch.tensor([1.0], device='cuda'))
+                    hidden_states_1 = pmath_geo.expmap0(hidden_states, k=torch.tensor([1.0]))
+                    hidden_states_2 = pmath_geo.expmap0(hidden_states2, k=torch.tensor([1.0]))
+                    #print(l)
+                    weighted_hidden_states_1 = pmath_geo.mobius_scalar_mul(torch.Tensor([l]), hidden_states_1, k=torch.tensor([1.0]))
+                    weighted_hidden_states_2 = pmath_geo.mobius_scalar_mul(torch.Tensor([1-l]), hidden_states_2, k=torch.tensor([1.0]))
+                    hidden_states_1_plus_2 = pmath_geo.mobius_add(weighted_hidden_states_1, weighted_hidden_states_2, k=torch.tensor([1.0]))
+                    hidden_states = pmath_geo.logmap0(hidden_states_1_plus_2, k=torch.tensor([1.0]))
 
             if i > mix_layer:
                 if self.output_hidden_states:
