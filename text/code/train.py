@@ -7,6 +7,22 @@ import numpy as np
 import torch
 #from geoopt import PoincareBall as pmath_geo
 import geoopt.manifolds.stereographic.math as pmath_geo
+from rake_nltk import Rake
+import re
+import nltk
+from nltk.stem.porter import PorterStemmer
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+
+nltk.download('punkt')
+nltk.download('stopwords')
+
+stop_words = stopwords.words('english')
+updated_stop_words = stop_words.copy()
+updated_stop_words.extend(['br'])
+updated_stop_words.remove('not')
+updated_stop_words.remove('nor')
+updated_stop_words.remove('is')
 
 print(torch.cuda.is_available())
 import torch.nn as nn
@@ -369,6 +385,58 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, schedule
                 mixed_target = target_a
                 logits = model(mixed_input, sent_size=256)
                 mixed = 1
+        
+        elif args.mix_method == 3:
+            # Use RAKE to distort an unlabelled sample whilst keeping the important features of the text
+            mixed_input = []
+            tokenizer = BertTokenizer.from_pretrained(args.model)
+            if l != 1:
+                sents = []
+                for i in range(input_a.size(0)):
+                    s = []
+                    for j in input_a[i]:
+                        if tokenizer.convert_ids_to_tokens(j.item())=="[PAD]":
+                            break
+                        s.append(tokenizer.convert_ids_to_tokens(j.item()))
+                    sents.append(" ".join(s))
+                
+                input_c = []
+
+                for i in sents:
+                    r = Rake()
+                    r.extract_keywords_from_text(str(i))
+                    #print(tokenizer.tokenize(i))
+                    #print(r.get_ranked_phrases_with_scores()[0][1])
+                    phr = re.sub("[^\w\s]","",r.get_ranked_phrases_with_scores()[0][1]).split()
+                    #print(phr)
+                    ss = i.split()
+                    new_ss = []
+                    for j in ss:
+                        if j in phr:
+                            new_ss.append(j)
+                        else:
+                            new_ss.append(tokenizer.convert_ids_to_tokens(random.randint(1,30000)))
+                    input_c.append(" ".join(new_ss))
+                
+                mixed_input = []
+
+                for text in input_c:
+                    tokens = tokenizer.tokenize(text)
+                    if len(tokens) > 256:
+                        tokens = tokens[:256]
+                    #length = len(tokens)
+                    encode_result = tokenizer.convert_tokens_to_ids(tokens)
+                    padding = [0] * (256 - len(encode_result))
+                    encode_result += padding
+                    mixed_input.append(torch.Tensor(encode_result).long().unsqueeze(0))
+
+                mixed_input = torch.cat(mixed_input, dim=0)
+
+            else:
+                mixed_input = input_a
+
+            logits = model(mixed_input)
+            mixed_target = l * target_a + (1 - l) * target_b
 
         Lx, Lu, w, Lu2, w2 = criterion(logits[:batch_size], mixed_target[:batch_size], logits[batch_size:-batch_size_2],
                                        mixed_target[batch_size:-batch_size_2], logits[-batch_size_2:], epoch+batch_idx/args.val_iteration, mixed)
@@ -433,7 +501,7 @@ def linear_rampup(current, rampup_length=args.epochs):
 class SemiLoss(object):
     def __call__(self, outputs_x, targets_x, outputs_u, targets_u, outputs_u_2, epoch, mixed=1):
 
-        if args.mix_method == 0 or args.mix_method == 1:
+        if args.mix_method == 0 or args.mix_method == 1 or args.mix_method==3:
 
             Lx = - \
                 torch.mean(torch.sum(F.log_softmax(
